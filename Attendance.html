@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Attendance System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #1a1a2e; color: #fff; }
+
+    .navbar {
+      background: #16213e;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .navbar h1 { color: #0f3460; font-size: 20px; color: #e94560; }
+    .nav-tabs { display: flex; gap: 10px; }
+    .nav-tabs button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background: #0f3460;
+      color: white;
+      font-size: 14px;
+    }
+    .nav-tabs button.active { background: #e94560; }
+
+    .container { max-width: 800px; margin: 30px auto; padding: 0 15px; }
+    .card {
+      background: #16213e;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+    }
+
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; color: #a0a0b0; }
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #0f3460;
+      background: #1a1a2e;
+      color: white;
+      font-size: 15px;
+    }
+
+    .btn {
+      padding: 12px 25px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: bold;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn-in  { background: #27ae60; color: white; }
+    .btn-out { background: #e94560; color: white; }
+    .btn-load { background: #0f3460; color: white; }
+
+    .status-box {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-weight: bold;
+      display: none;
+    }
+    .status-success { background: #27ae6033; border: 1px solid #27ae60; }
+    .status-error   { background: #e9456033; border: 1px solid #e94560; }
+
+    .clock {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      color: #e94560;
+      margin-bottom: 20px;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th { background: #0f3460; padding: 10px; text-align: left; font-size: 13px; }
+    td { padding: 10px; border-bottom: 1px solid #0f346033; font-size: 13px; }
+    .row-green { background: #27ae6022; }
+    .row-yellow { background: #f39c1222; }
+    .row-red { background: #e9456022; }
+
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .filter-bar input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #0f3460;
+      background: #1a1a2e;
+      color: white;
+      min-width: 140px;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    @media (max-width: 500px) {
+      .navbar { flex-direction: column; gap: 10px; }
+      th, td { font-size: 11px; padding: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>📋 Attendance System</h1>
+  <div class="nav-tabs">
+    <button class="active" onclick="switchTab('punch')">Punch</button>
+    <button onclick="switchTab('tracker')">Tracker</button>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- PUNCH TAB -->
+  <div id="punch" class="tab-content active">
+    <div class="card">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="form-group">
+        <label>Employee Name</label>
+        <input type="text" id="empName" placeholder="Enter your name" />
+      </div>
+      <div class="form-group">
+        <label>Employee ID</label>
+        <input type="text" id="empId" placeholder="Enter your ID" />
+      </div>
+      <button class="btn btn-in"  onclick="punch('punchIn')">✅ PUNCH IN</button>
+      <button class="btn btn-out" onclick="punch('punchOut')">🔴 PUNCH OUT</button>
+      <div class="status-box" id="statusBox"></div>
+    </div>
+  </div>
+
+  <!-- TRACKER TAB -->
+  <div id="tracker" class="tab-content">
+    <div class="card">
+      <div class="filter-bar">
+        <input type="text"  id="searchInput" placeholder="🔍 Search name or ID" oninput="filterTable()" />
+        <input type="date"  id="fromDate" onchange="filterTable()" />
+        <input type="date"  id="toDate"   onchange="filterTable()" />
+      </div>
+      <button class="btn btn-load" onclick="loadData()">🔄 Load Attendance</button>
+      <button class="btn" style="background:#27ae60;margin-top:8px" onclick="exportCSV()">⬇️ Export CSV</button>
+      <div style="overflow-x:auto">
+        <table id="attendanceTable">
+          <thead>
+            <tr>
+              <th>Name</th><th>ID</th><th>Date</th>
+              <th>Punch In</th><th>Punch Out</th><th>Hours</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwsMW7SKxECF8RbIaXXEkQbQ7oZ0IXIyYY9-QJpIl_kc9BGnSTshbQdgGtd2rmFKv4F/exec"; // 🔴 REPLACE THIS
+  let allRecords = [];
+
+  // Live Clock
+  setInterval(() => {
+    document.getElementById("clock").textContent =
+      new Date().toLocaleTimeString();
+  }, 1000);
+
+  function switchTab(tab) {
+    document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".nav-tabs button").forEach(b => b.classList.remove("active"));
+    document.getElementById(tab).classList.add("active");
+    event.target.classList.add("active");
+  }
+
+  function showStatus(msg, type) {
+    const box = document.getElementById("statusBox");
+    box.textContent = msg;
+    box.className = "status-box " + (type === "success" ? "status-success" : "status-error");
+    box.style.display = "block";
+    setTimeout(() => box.style.display = "none", 4000);
+  }
+
+  function punch(action) {
+    const name  = document.getElementById("empName").value.trim();
+    const empId = document.getElementById("empId").value.trim();
+    if (!name || !empId) { showStatus("⚠️ Please enter Name and ID", "error"); return; }
+
+    const now   = new Date();
+    const date  = now.toLocaleDateString("en-IN");
+    const time  = now.toLocaleTimeString("en-IN");
+
+    let payload = { action, name, empId, date, time };
+
+    if (action === "punchOut") {
+      const storedIn = localStorage.getItem("punchIn_" + empId);
+      if (storedIn) {
+        const inTime = new Date(storedIn);
+        const diff   = ((now - inTime) / 3600000).toFixed(2);
+        payload.totalHours = diff;
+      } else {
+        payload.totalHours = "N/A";
+      }
+    } else {
+      localStorage.setItem("punchIn_" + empId, now.toString());
+    }
+
+    showStatus("⏳ Saving...", "success");
+
+    fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => showStatus(res.message || "Done!", "success"))
+    .catch(() => showStatus("❌ Error! Check URL or internet.", "error"));
+  }
+
+  function loadData() {
+    fetch(SCRIPT_URL)
+      .then(r => r.json())
+      .then(res => {
+        allRecords = res.data || [];
+        renderTable(allRecords);
+      })
+      .catch(() => alert("❌ Failed to load data!"));
+  }
+
+  function renderTable(records) {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+    records.forEach(r => {
+      const hrs = parseFloat(r["Total Hours"]);
+      const cls = hrs >= 8 ? "row-green" : hrs >= 4 ? "row-yellow" : "row-red";
+      tbody.innerHTML += `
+        <tr class="${cls}">
+          <td>${r["Employee Name"]}</td>
+          <td>${r["Employee ID"]}</td>
+          <td>${r["Date"]}</td>
+          <td>${r["Punch In"]}</td>
+          <td>${r["Punch Out"] || "-"}</td>
+          <td>${r["Total Hours"] || "-"}</td>
+        </tr>`;
+    });
+  }
+
+  function filterTable() {
+    const search = document.getElementById("searchInput").value.toLowerCase();
+    const from   = document.getElementById("fromDate").value;
+    const to     = document.getElementById("toDate").value;
+    const filtered = allRecords.filter(r => {
+      const matchText = r["Employee Name"].toLowerCase().includes(search) ||
+                        String(r["Employee ID"]).toLowerCase().includes(search);
+      return matchText;
+    });
+    renderTable(filtered);
+  }
+
+  function exportCSV() {
+    if (!allRecords.length) { alert("Load data first!"); return; }
+    const headers = ["Employee Name","Employee ID","Date","Punch In","Punch Out","Total Hours"];
+    const rows = allRecords.map(r => headers.map(h => r[h] || "").join(","));
+    const csv  = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = "attendance.csv"; a.click();
+  }
+</script>
+</body>
+</html>
